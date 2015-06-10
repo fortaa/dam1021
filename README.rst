@@ -1,6 +1,6 @@
 Python inferface for the dam1021 DAC
 ====================================
-This library streamlines communication with a `dam1012 <http://soekris.dk/dam1021.html>`_ device. The dam1021 is a DAC module based on a discrete R-2R sign magnitude DAC design, with FPGA based FIFO buffering/reclocking and custom digital filters.
+This library streamlines communication with a `dam1021 <http://soekris.dk/dam1021.html>`_ device. The dam1021 is a DAC module based on a discrete R-2R sign magnitude DAC design, with FPGA based FIFO buffering/reclocking and custom digital filters.
 
 Features
 --------
