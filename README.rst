@@ -5,7 +5,7 @@ This library streamlines communication with a `dam1012 <http://soekris.dk/dam102
 Features
 --------
 
-- Load firmware or filer set
+- Load firmware or filter set
 - Digital volume control (two modes)
 - Input source selection
 - Command-line utility
