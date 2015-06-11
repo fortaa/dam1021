@@ -32,10 +32,17 @@ Windows users might find `virtualenvwrapper-win <https://github.com/davidmarble/
 
 .. code-block:: bash
 		
-   pip install pyserial
-   pip install xmodem
+   pip install dam1021
+
+* You are ready to use the library:
+
+.. code-block:: bash
+
+   $ cd path/to/new/environment/lib/python2.7/site-packages
+   $ python dam1021.py -h
 		
-* Then grab `dam1021.py <https://github.com/fortaa/dam1021/raw/master/src/dam1021.py>`_ and put it on a desired path.
+* ...or to use through Python shell directly (see :ref:`api-label`)
+
 
 Command-line utility
 --------------------
@@ -68,6 +75,7 @@ All API functionality is exposed via a built-in utility. So you don't need to co
     
     Example: python dam1021.py -s /dev/ttyUSB0 -f firmware.skr
 
+.. _api-label:
   		
 API
 ---
