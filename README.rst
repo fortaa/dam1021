@@ -41,7 +41,7 @@ Windows users might find `virtualenvwrapper-win <https://github.com/davidmarble/
    $ cd path/to/new/environment/lib/python2.7/site-packages
    $ python dam1021.py -h
 		
-* ...or to use through Python shell directly (see :ref:`api-label`)
+* ...or to use through Python shell directly (see API)
 
 
 Command-line utility
