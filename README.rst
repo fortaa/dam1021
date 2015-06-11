@@ -63,7 +63,7 @@ All API functionality is exposed via a built-in utility. So you don't need to co
       -s SERIAL, --serial-device SERIAL
                             serial device to use [default: /dev/ttyUSB0]
       -t TIMEOUT, --timeout TIMEOUT
-                            serial device to use in seconds [default: 1]
+                            serial read timeout to use in seconds [default: 1]
       -d DOWNLOAD, --download DOWNLOAD
                             download a new firmware or filter set
       -l VOLUME_LEVEL, --volume-level VOLUME_LEVEL

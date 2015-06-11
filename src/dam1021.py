@@ -275,7 +275,7 @@ def run():
                         help="serial device to use [default: {}]".format(DEFAULT_SERIAL_DEVICE),
                         default=DEFAULT_SERIAL_DEVICE)
     parser.add_argument("-t", "--timeout",
-                        help="serial device to use in seconds [default: {}]".format(DEFAULT_SERIAL_TIMEOUT),
+                        help="serial read timeout to use in seconds [default: {}]".format(DEFAULT_SERIAL_TIMEOUT),
                         default=DEFAULT_SERIAL_TIMEOUT,type=float)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-d","--download", help="download a new firmware or filter set",
