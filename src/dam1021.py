@@ -6,13 +6,14 @@ __author__ = "Forta(a)"
 __copyright__ = "Copyright 2015, Forta(a)"
 
 __license__ = "GPL 3.0"
-__version__ = "0.1"
+__version__ = "0.2"
 __maintainer__ = "Forta(a)"
 __status__ = "Alpha"
 
 #you may change these values to meet your requirements
 DEFAULT_SERIAL_DEVICE="/dev/ttyUSB0"
-DEFAULT_SERIAL_TIMEOUT=1
+DEFAULT_SERIAL_DEVICE="/var/tmp/mymodem"
+DEFAULT_SERIAL_TIMEOUT=2
 
 VOLUME_INF=-99
 VOLUME_SUP=15
@@ -53,10 +54,8 @@ class Connection(object):
     """
 
     def __init__(self,device=DEFAULT_SERIAL_DEVICE,timeout=DEFAULT_SERIAL_TIMEOUT,cautious = False):
-      
-        self.ser = serial.Serial(device,115200,timeout=timeout)
-      
         self.cautious = cautious
+        self.timeout  = timeout
 
         #cmdlist
         self.cmd_umanager_invocation = '+++'
@@ -72,9 +71,9 @@ class Connection(object):
         self.umanager_errtxt = 'invalid command'
         self.umanager_opened = False
         self.buf_on_exit = '{}\r\n'.format(self.cmd_umanager_termination)
+        self.read_loop_timeout = 0.25
         self.readsize = 300
-        self.umanager_waitcoeff = 2.5
-        self.intercmd = 1
+        self.umanager_waitcoeff = 1.5
         self.volume_inf = VOLUME_INF
         self.volume_sup = VOLUME_SUP
         self.input_src_set = INPUT_SRC_SET
@@ -99,9 +98,23 @@ class Connection(object):
                 return rv if rv else None
             return getc
 
+        self.ser = serial.Serial(device,115200,timeout=0.25)
         self.xmodem = xmodem.XMODEM(getc_generator(self.ser),putc_generator(self.ser))
 
         log.debug("Serial port opened")
+
+    def read_loop(self,exit_condition,timeout):
+        buf = ''
+        rv  = False 
+        while timeout > 0:
+            buf += self.ser.read(self.readsize)
+            if exit_condition(buf):
+                rv = True
+                break
+            else:
+                timeout -= self.read_loop_timeout
+        log.debug(buf.__repr__())
+        return rv
 
     def close(self):
         """Closes serial port
@@ -120,14 +133,17 @@ class Connection(object):
         if self.umanager_opened:
             return
         self.ser.write(self.cmd_umanager_invocation)
-        time.sleep(self.intercmd*self.umanager_waitcoeff)
-        #if we are already in umanager, this will give us a fresh prompt
-        self.ser.write(self.cr)
-        buf = self.ser.read(self.readsize)
-        log.debug(buf)
-        if buf.endswith(self.umanager_prompt):
-            log.debug("uManager opened")
+        # optimistic approach first: assume umanager is not invoked
+        if self.read_loop(lambda x: x.endswith(self.umanager_prompt),self.timeout*self.umanager_waitcoeff):
             self.umanager_opened = True
+        else:
+            #if we are already in umanager, this will give us a fresh prompt
+            self.ser.write(self.cr)
+            if self.read_loop(lambda x: x.endswith(self.umanager_prompt),self.timeout):
+                self.umanager_opened = True
+        
+        if self.umanager_opened:
+            log.debug("uManager opened")
         else:
             raise Dam1021Error(1,"Failed to open uManager")
 
@@ -141,15 +157,16 @@ class Connection(object):
             return
         # make sure we've got a fresh prompt
         self.ser.write(self.cr)
-        time.sleep(self.intercmd)
-        self.ser.write(''.join((self.cmd_umanager_termination,self.cr)))
-        buf = self.ser.read(self.readsize)
-        log.debug(buf)
-        if buf.endswith(self.buf_on_exit):
-            log.debug("uManager closed")
-            self.umanager_opened = False
+        if self.read_loop(lambda x: x.endswith(self.umanager_prompt),self.timeout):
+            self.ser.write(''.join((self.cmd_umanager_termination,self.cr)))
+            if self.read_loop(lambda x: x.endswith(self.buf_on_exit),self.timeout):
+                log.debug("uManager closed")
+            else:
+                raise Dam1021Error(2,"Failed to close uManager")
         else:
-            raise Dam1021Error(2,"Failed to close uManager")
+            log.debug("uManager already closed")
+            
+        self.umanager_opened = False
 
     def download(self,data):
         """Used to download firmware or filter set.
@@ -159,10 +176,7 @@ class Connection(object):
         
         self.open_umanager()
         self.ser.write(''.join((self.cmd_download,self.cr)))
-        time.sleep(self.intercmd)
-        buf = self.ser.read(self.readsize)
-        log.debug(buf)
-        if buf.endswith(self.xmodem_crc):
+        if self.read_loop(lambda x: x.endswith(self.xmodem_crc),self.timeout):
             if self.xmodem.send(StringIO.StringIO(data)):
                 log.info("Data sent")
             else:
@@ -170,9 +184,7 @@ class Connection(object):
         else:
             raise Dam1021Error(3,"uManager is not ready to accept a data")
       
-        buf = self.ser.read(self.readsize*3)
-        log.debug(buf)
-        if buf.find(self.reprogram_ack) != -1:
+        if self.read_loop(lambda x: x.lower().find(self.reprogram_ack) != -1,self.timeout):
             skr_sum = hashlib.sha1(data).hexdigest()
             log.info("DAC reprogrammed. Data SHA-1 checksum: {}".format(skr_sum))
         else:
@@ -197,10 +209,7 @@ class Connection(object):
         tries = 2
         while tries:
             self.ser.write(''.join((self.cmd_current_volume.format(level),self.cr)))
-            time.sleep(self.intercmd)
-            buf = self.ser.read(self.readsize)
-            log.debug(buf.__repr__())
-            if buf.rstrip().endswith(self.cmd_current_volume.format(level)):
+            if self.read_loop(lambda x: x.rstrip().endswith(self.cmd_current_volume.format(level)),self.timeout):
                 log.info("Current volume level set to {0:d}".format(level))
                 break
             else:
@@ -220,10 +229,7 @@ class Connection(object):
 
         self.open_umanager()
         self.ser.write(''.join((self.cmd_flash_volume.format(level),self.cr)))
-        time.sleep(self.intercmd)
-        buf = self.ser.read(self.readsize)
-        log.debug(buf)
-        if buf.rstrip().lower().endswith(self.umanager_errtxt):
+        if self.read_loop(lambda x: x.rstrip().lower().endswith(self.umanager_errtxt),self.timeout):
             raise Dam1021Error(8,"Failed to set flash volume level")
         else:
             log.info("Flash volume level set to {0:d}".format(level))
@@ -245,10 +251,7 @@ class Connection(object):
         tries = 2
         while tries:
             self.ser.write(''.join((self.cmd_input_selection.format(input_src),self.cr)))
-            time.sleep(self.intercmd)
-            buf = self.ser.read(self.readsize)
-            log.debug(buf)
-            if buf.rstrip().endswith(self.cmd_input_selection.format(input_src)):
+            if self.read_loop(lambda x: x.rstrip().endswith(self.cmd_input_selection.format(input_src)),self.timeout):
                 log.info("Input source set to {0:d}".format(input_src))
                 break
             else:
