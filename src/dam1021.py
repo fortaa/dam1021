@@ -12,7 +12,6 @@ __status__ = "Alpha"
 
 #you may change these values to meet your requirements
 DEFAULT_SERIAL_DEVICE="/dev/ttyUSB0"
-DEFAULT_SERIAL_DEVICE="/var/tmp/mymodem"
 DEFAULT_SERIAL_TIMEOUT=2
 
 VOLUME_INF=-99
@@ -20,7 +19,6 @@ VOLUME_SUP=15
 INPUT_SRC_SET=range(3)
 
 import logging
-import time
 import StringIO
 import hashlib
 
@@ -261,7 +259,6 @@ class Connection(object):
 
 def run():
     from argparse import ArgumentParser,FileType
-    import sys
 
     logging.basicConfig()
 
