@@ -86,7 +86,7 @@ Obviously you can create your own too. API is pretty simple:
 
 		>>> import dam1021
 		>>> conn = dam1021.Connection('/dev/ttyS0')
-		>>> conn.download('newfilter.skr')
+		>>> conn.download(open('newfilter.skr').read())
 		>>> conn.set_current_volume_level(-14)
 		>>> conn.set_flash_volume_level(-22)
 		>>> conn.set_input_source(0)
