@@ -443,7 +443,7 @@ def run():
 
     logging.basicConfig()
 
-    description = "This script is designed to operate with a dam1021 DAC. Four operations are available. Exclusive access to a serial device is a prerequisite."
+    description = "This script is designed to operate with a dam1021 DAC. Exclusive access to a serial device is a prerequisite."
    
     epilog =  "Example: python %(prog)s -s /dev/ttyUSB0 -d firmware.skr"
 
