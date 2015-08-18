@@ -69,7 +69,7 @@ class Connection(object):
         self.umanager_prompt = '# '
         self.umanager_errtxt = 'invalid command'
         self.umanager_opened = False
-        self.buf_on_exit = '{}\r\n'.format(self.cmd_umanager_termination)
+        self.buf_on_exit = '\r\n'
         self.read_loop_timeout = 0.25
         self.readsize = 300
         self.umanager_waitcoeff = 1.5
