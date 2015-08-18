@@ -16,7 +16,7 @@ DEFAULT_SERIAL_TIMEOUT=2
 
 VOLUME_INF=-99
 VOLUME_SUP=15
-INPUT_SRC_SET=range(3)
+INPUT_SRC_SET=range(4)
 
 import logging
 import StringIO
