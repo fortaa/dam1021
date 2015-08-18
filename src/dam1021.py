@@ -19,6 +19,8 @@ VOLUME_SUP=10
 VOLUME_POT=-99
 INPUT_SRC_SET=range(4)
 
+OPMODES = ['normal','invert','bal-left','bal-right']
+
 import logging
 import StringIO
 import hashlib
@@ -64,6 +66,7 @@ class Connection(object):
         self.cmd_current_volume = 'V{:+03d}'
         self.cmd_input_selection = 'I{:d}'
         self.cmd_update = 'update'
+        self.cmd_mode = 'set mode={:s}'
     
         #internal stuff
         self.cr = '\r'
@@ -77,6 +80,7 @@ class Connection(object):
         self.volume_inf = VOLUME_INF
         self.volume_sup = VOLUME_SUP
         self.volume_pot = VOLUME_POT
+        self.opmodes = OPMODES
         self.input_src_set = INPUT_SRC_SET
         self.xmodem_crc = 'C'
         self.reprogram_ack = 'programmed'
@@ -253,6 +257,23 @@ class Connection(object):
             log.info("Flash volume level set to {0:d}".format(level))
         self.close_umanager()
 
+    def set_mode(self,opmode): 
+        """Used to set mode of operation.
+        
+        :param opmode: type of mode; accepted values: {}
+        """.format(','.join(OPMODES))
+
+        if opmode not in self.opmodes:
+            raise Dam1021Error(15,"Forbbiden mode")
+
+        self.open_umanager()
+        self.ser.write(''.join((self.cmd_mode.format(opmode),self.cr)))
+        if self.read_loop(lambda x: x.rstrip().lower().endswith(self.umanager_errtxt),self.timeout):
+            raise Dam1021Error(8,"Failed to set flash volume level")
+        else:
+            log.info("Mode of operation set to {0:s}".format(opmode))
+        self.close_umanager()
+
     def set_input_source(self,input_src):
         """Used to set input source for a DAC.
         
@@ -303,6 +324,10 @@ def run():
     group.add_argument("-u","--download-and-update", help="download a new firmware and update uManager",
                        type=FileType('rb'))
 
+    group.add_argument("--mode", 
+                       help="select mode of operation [{}]".format(','.join(OPMODES)),
+                   )
+
     group.add_argument("-l","--volume-level", 
                        help="set a current volume level [{},{}] and {} for potentiometer control".format(VOLUME_INF,VOLUME_SUP,VOLUME_POT),
                    )
@@ -335,6 +360,8 @@ def run():
                 conn.set_flash_volume_level(int(args.flash_volume_level))
             elif args.input_source:
                 conn.set_input_source(int(args.input_source))
+            elif args.mode:
+                conn.set_mode(args.mode)
         except Exception as e:
             log.error(e)
         finally:
