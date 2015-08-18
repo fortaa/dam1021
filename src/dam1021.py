@@ -19,6 +19,9 @@ VOLUME_SUP=10
 VOLUME_POT=-99
 INPUT_SRC_SET=range(4)
 
+FSET_EXT_STR_TO_INT_D = dict(linear=4,mixed=5,minimum=6,soft=7)
+FSET_EXT_NUM_TO_INT_D = {'1':4,'2':5,'3':6,'4':7 }
+
 OPMODES = ['normal','invert','bal-left','bal-right']
 
 import logging
@@ -67,6 +70,10 @@ class Connection(object):
         self.cmd_input_selection = 'I{:d}'
         self.cmd_update = 'update'
         self.cmd_mode = 'set mode={:s}'
+        self.cmd_current_fset = 'F{:d}'
+        self.cmd_flash_fset = 'set filter={:s}'
+        self.cmd_current_filter_list = 'filters'
+        self.cmd_all_filter_list = 'filters all'
     
         #internal stuff
         self.cr = '\r'
@@ -80,6 +87,8 @@ class Connection(object):
         self.volume_inf = VOLUME_INF
         self.volume_sup = VOLUME_SUP
         self.volume_pot = VOLUME_POT
+        self.fset_str_d = FSET_EXT_STR_TO_INT_D
+        self.fset_num_d = FSET_EXT_NUM_TO_INT_D
         self.opmodes = OPMODES
         self.input_src_set = INPUT_SRC_SET
         self.xmodem_crc = 'C'
@@ -111,7 +120,7 @@ class Connection(object):
 
         log.debug("Serial port opened")
 
-    def read_loop(self,exit_condition,timeout):
+    def read_loop(self,exit_condition,timeout,callback=None):
         buf = ''
         rv  = False 
         while timeout > 0:
@@ -121,7 +130,12 @@ class Connection(object):
                 break
             else:
                 timeout -= self.read_loop_timeout
+
+        if hasattr(callback,'__call__'):
+            callback(rv,buf,exit_condition)
+
         log.debug(buf.__repr__())
+
         return rv
 
     def close(self):
@@ -297,6 +311,133 @@ class Connection(object):
         if tries == 0:
             raise Dam1021Error(10,"Failed to set input source")  
 
+    def set_current_filter_set(self,fset):
+        """Used to set current filter set.
+        
+        :param fset: filter set; accepted values: [{}]
+        """.format('|'.join([ "({}|{})".format(i[0],j[0]) for i in sorted(FSET_EXT_NUM_TO_INT_D.items()) for j in FSET_EXT_STR_TO_INT_D.items() if j[1]==i[1]]))
+
+        origfset = fset
+
+        try:
+            if isinstance(fset,int):
+                fset = str(fset)
+            if fset.isdigit():
+                fset = self.fset_num_d[fset]
+            else:
+                fset = self.fset_str_d[fset]
+        except KeyError:
+            raise Dam1021Error(11,"Forbbiden filter set")
+         
+        if self.cautious:
+            self.close_umanager(True)
+         
+        tries = 2
+        while tries:
+            self.ser.write(''.join((self.cmd_current_fset.format(fset),self.cr)))
+            if self.read_loop(lambda x: x.rstrip().endswith(self.cmd_current_fset.format(fset)),self.timeout):
+                log.info("Current filter set is {0}".format(origfset))
+                break
+            else:
+                tries -= 1
+        if tries == 0:
+            raise Dam1021Error(12,"Failed to change filter set")
+      
+    def set_flash_filter_set(self,fset):
+        """Used to set a default filter set on flash. Also changes current filter set. A current filter set matches this value during power-up.
+        
+        :param fset: filter set; accepted values: [{}]
+        """.format('|'.join([ "({}|{})".format(i[0],j[0]) for i in sorted(FSET_EXT_NUM_TO_INT_D.items()) for j in FSET_EXT_STR_TO_INT_D.items() if j[1]==i[1]]))
+        
+        origfset = fset
+
+        try:
+            if isinstance(fset,int):
+                fset = str(fset)
+            if fset.isdigit():
+                fset = self.fset_num_d[fset]
+                intfset = [ entry[0] for entry in self.fset_str_d.items() if entry[1] == fset ][0]
+            else:
+                self.fset_str_d[fset]
+                intfset = fset
+        except KeyError:
+            raise Dam1021Error(11,"Forbbiden filter set")
+
+        self.open_umanager()
+        self.ser.write(''.join((self.cmd_flash_fset.format(intfset),self.cr)))
+        if self.read_loop(lambda x: x.rstrip().lower().endswith(self.umanager_errtxt),self.timeout):
+            raise Dam1021Error(18,"Failed to set default filter set")
+        else:
+            log.info("Default filter set changed to {0}".format(origfset))
+        self.close_umanager()
+
+    def list_current_filter_set(self,raw=False):
+        """User to list a currently selected filter set"""
+        
+        buf = []
+
+        self.open_umanager()
+        self.ser.write(''.join((self.cmd_current_filter_list,self.cr)))
+        if self.read_loop(lambda x: x.endswith(self.umanager_prompt),self.timeout,lambda x,y,z: buf.append(y.rstrip()[:-1])):
+            if raw:
+                rv = buf = buf[0]
+            else:
+                rv, buf = self.filter_organizer(buf[0])
+        else:
+            raise Dam1021Error(16,"Failed to list currently selected filter set")
+        self.close_umanager()
+
+        log.info(buf)
+
+        return rv
+
+    def list_all_filters(self,raw=False):
+        """User to list all available filters"""
+        
+        buf = []
+
+        self.open_umanager()
+        self.ser.write(''.join((self.cmd_all_filter_list,self.cr)))
+        if self.read_loop(lambda x: x.endswith(self.umanager_prompt),self.timeout,lambda x,y,z: buf.append(y.rstrip()[:-1])):
+            if raw:
+                rv = buf = buf[0]
+            else:
+                rv, buf = self.filter_organizer(buf[0])
+        else:
+            raise Dam1021Error(17,"Failed to list all available filters")
+        self.close_umanager()
+
+        log.info(buf)
+
+        return rv
+
+    def filter_organizer(self,rdata):
+        aux1 = { 4:'FIR1',5:'FIR1',6:'FIR1',7:'FIR1',8:'FIR2',9:'FIR2',10:'FIR2',11:'FIR2'}
+        aux2 = { 4:1,5:2,6:3,7:4,8:1,9:2,10:3,11:4}
+
+        rdata = [ entry.strip() for entry in rdata.split(self.cr) ] 
+        rdata = [ entry.split(' ',1) for entry in rdata if entry[:2].isdigit() ]
+        rv = dict(FIR=dict(),IIR=dict())
+        for eid,edata in rdata:
+            eid =  int(eid)
+            if eid in range(4,12):
+                rv['FIR'].setdefault(aux2[eid],dict()).setdefault(aux1[eid],[]).append((eid,edata))
+            else:
+                rv['IIR'].setdefault(eid,[]).append(edata)
+        rbuf = ['\nFIR filters:']
+        for bid,bval in rv['FIR'].items():
+            rbuf.append('  Bank {:02d}:'.format(bid))
+            for fid,fval in bval.items():
+                for entry in fval:
+                    rbuf.append('    {}: type({:02d}) {}'.format(fid,entry[0],entry[1]))
+        rbuf.append('IIR filters:')
+        for eid, edata in sorted(rv['IIR'].items()):
+            for entry in edata:
+                rbuf.append('  type({:02d}) {}'.format(eid,entry))
+
+        return rv, '\n'.join(rbuf)
+
+
 def run():
     from argparse import ArgumentParser,FileType
 
@@ -339,7 +480,19 @@ def run():
                        help="set input source [{},{}]".format(min(INPUT_SRC_SET),max(INPUT_SRC_SET)),
                    )
 
-       
+    group.add_argument("-f","--filter-set", 
+                       help="set a current filter set [{}]".format('|'.join([ "({}|{})".format(i[0],j[0]) for i in sorted(FSET_EXT_NUM_TO_INT_D.items()) for j in FSET_EXT_STR_TO_INT_D.items() if j[1]==i[1]])),
+                   )
+    group.add_argument("--default-filter-set", 
+                       help="set a default filter set on flash [{}]".format('|'.join([ "({}|{})".format(i[0],j[0]) for i in sorted(FSET_EXT_NUM_TO_INT_D.items()) for j in FSET_EXT_STR_TO_INT_D.items() if j[1]==i[1]])),
+                   )
+    group.add_argument("-c","--current-filter-set", action="store_true",
+                       help="show currently selected filter set",
+                   )
+    group.add_argument("-a","--all-filters", action="store_true",
+                       help="show all available filters",
+                   )
+
     args = parser.parse_args()
 
     if args.verbose:
@@ -360,6 +513,14 @@ def run():
                 conn.set_flash_volume_level(int(args.flash_volume_level))
             elif args.input_source:
                 conn.set_input_source(int(args.input_source))
+            elif args.filter_set:
+                conn.set_current_filter_set(args.filter_set)
+            elif args.default_filter_set:
+                conn.set_flash_filter_set(args.default_filter_set)
+            elif args.current_filter_set:
+                conn.list_current_filter_set()
+            elif args.all_filters:
+                conn.list_all_filters()
             elif args.mode:
                 conn.set_mode(args.mode)
         except Exception as e:
