@@ -11,7 +11,7 @@ __maintainer__ = "Forta(a)"
 __status__ = "Alpha"
 
 #you may change these values to meet your requirements
-DEFAULT_SERIAL_DEVICE="/dev/ttyUSB0"
+DEFAULT_SERIAL_DEVICE="/dev/ttyAMA0"
 DEFAULT_SERIAL_TIMEOUT=2
 
 VOLUME_INF=-99
