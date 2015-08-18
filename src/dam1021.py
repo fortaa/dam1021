@@ -63,6 +63,7 @@ class Connection(object):
         self.cmd_flash_volume = 'set volume={:+03d}'
         self.cmd_current_volume = 'V{:+03d}'
         self.cmd_input_selection = 'I{:d}'
+        self.cmd_update = 'update'
 
         #internal stuff
         self.cr = '\r'
@@ -168,10 +169,11 @@ class Connection(object):
             
         self.umanager_opened = False
 
-    def download(self,data):
+    def download(self,data,um_update=False):
         """Used to download firmware or filter set.
         
         :param data: binary string to push via serial 
+        :param um_update: flag whether to update umanager
         """
         
         self.open_umanager()
@@ -186,13 +188,27 @@ class Connection(object):
       
         if self.read_loop(lambda x: x.lower().find(self.reprogram_ack) != -1,self.timeout):
             skr_sum = hashlib.sha1(data).hexdigest()
-            log.info("DAC reprogrammed. Data SHA-1 checksum: {}".format(skr_sum))
+            log.info("File downloaded. Data SHA-1 checksum: {}".format(skr_sum))
         else:
             raise Dam1021Error(5,"uManager accepted data and not reprogrammed")
-         
-        self.close_umanager()
+
+        if um_update:
+            self.ser.write(''.join((self.cmd_update,self.cr)))
+            if self.read_loop(lambda x: x.lower().find(self.update_confirmation) != -1,self.timeout*self.umanager_waitcoeff):
+                self.ser.write(self.update_ack)
+            else:
+                raise Dam1021Error(13,"Error during update command invocation")
+
+            if self.read_loop(lambda x: x.lower().find(self.update_reset) != -1,self.timeout*self.umanager_waitcoeff):
+                log.info("uManager updated")
+            else:
+                raise Dam1021Error(14,"Update failed")
+        else:
+            self.close_umanager()            
+
 
         return skr_sum
+
 
     def set_current_volume_level(self,level):
         """Used to set current volume level. Not to be confused with a volume level stored in flash.
@@ -278,7 +294,10 @@ def run():
                         help="serial read timeout to use in seconds [default: {}]".format(DEFAULT_SERIAL_TIMEOUT),
                         default=DEFAULT_SERIAL_TIMEOUT,type=float)
     group = parser.add_mutually_exclusive_group(required=True)
+
     group.add_argument("-d","--download", help="download a new firmware or filter set",
+                       type=FileType('rb'))
+    group.add_argument("-u","--download-and-update", help="download a new firmware and update uManager",
                        type=FileType('rb'))
 
     group.add_argument("-l","--volume-level", 
@@ -305,6 +324,8 @@ def run():
         try:
             if args.download:
                 conn.download(args.download.read())
+            elif args.download_and_update:
+                conn.download(args.download_and_update.read(),True)
             elif args.volume_level:
                 conn.set_current_volume_level(int(args.volume_level))
             elif args.flash_volume_level:
