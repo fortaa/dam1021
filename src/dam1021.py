@@ -14,8 +14,9 @@ __status__ = "Alpha"
 DEFAULT_SERIAL_DEVICE="/dev/ttyAMA0"
 DEFAULT_SERIAL_TIMEOUT=2
 
-VOLUME_INF=-99
-VOLUME_SUP=15
+VOLUME_INF=-80
+VOLUME_SUP=10
+VOLUME_POT=-99
 INPUT_SRC_SET=range(4)
 
 import logging
@@ -74,6 +75,7 @@ class Connection(object):
         self.umanager_waitcoeff = 1.5
         self.volume_inf = VOLUME_INF
         self.volume_sup = VOLUME_SUP
+        self.volume_pot = VOLUME_POT
         self.input_src_set = INPUT_SRC_SET
         self.xmodem_crc = 'C'
         self.reprogram_ack = 'programmed'
@@ -195,10 +197,10 @@ class Connection(object):
     def set_current_volume_level(self,level):
         """Used to set current volume level. Not to be confused with a volume level stored in flash.
         
-        :param level: volume level; accepted values: [{},{}] 
-        """.format(VOLUME_INF,VOLUME_SUP)
+        :param level: volume level; accepted values: [{},{}] and {} for potentiometer control 
+        """.format(VOLUME_INF,VOLUME_SUP,VOLUME_POT)
 
-        if level < self.volume_inf or level > self.volume_sup:
+        if level != self.volume_pot and not (self.volume_inf <= level <= self.volume_sup):
             raise Dam1021Error(6,"Forbbiden volume level")
          
         if self.cautious:
@@ -214,15 +216,14 @@ class Connection(object):
                 tries -= 1
         if tries == 0:
             raise Dam1021Error(7,"Failed to set current volume level")
-      
 
     def set_flash_volume_level(self,level): 
         """Used to set volume level on flash. Not to be confused with current volume level. Current volume is set to this value during power-up.
         
-        :param level: volume level; accepted values: [{},{}] 
-        """.format(VOLUME_INF,VOLUME_SUP)
+        :param level: volume level; accepted values: [{},{}] and {} for potentiometer control 
+        """.format(VOLUME_INF,VOLUME_SUP,VOLUME_POT)
 
-        if level < self.volume_inf or level > self.volume_sup:
+        if level != self.volume_pot and not (self.volume_inf <= level <= self.volume_sup):
             raise Dam1021Error(6,"Forbbiden volume level")
 
         self.open_umanager()
@@ -232,7 +233,6 @@ class Connection(object):
         else:
             log.info("Flash volume level set to {0:d}".format(level))
         self.close_umanager()
-
 
     def set_input_source(self,input_src):
         """Used to set input source for a DAC.
@@ -280,12 +280,14 @@ def run():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-d","--download", help="download a new firmware or filter set",
                        type=FileType('rb'))
+
     group.add_argument("-l","--volume-level", 
-                       help="set a current volume level [{},{}]".format(VOLUME_INF,VOLUME_SUP),
+                       help="set a current volume level [{},{}] and {} for potentiometer control".format(VOLUME_INF,VOLUME_SUP,VOLUME_POT),
                    )
-    group.add_argument("-f","--flash-volume-level", 
-                       help="set a volume level on flash [{},{}]".format(VOLUME_INF,VOLUME_SUP),
+    group.add_argument("--flash-volume-level", 
+                       help="set a volume level on flash [{},{}] and {} for potentiometer control".format(VOLUME_INF,VOLUME_SUP,VOLUME_POT),
                    )
+    
     group.add_argument("-i","--input-source", 
                        help="set input source [{},{}]".format(min(INPUT_SRC_SET),max(INPUT_SRC_SET)),
                    )
