@@ -64,7 +64,7 @@ class Connection(object):
         self.cmd_current_volume = 'V{:+03d}'
         self.cmd_input_selection = 'I{:d}'
         self.cmd_update = 'update'
-
+    
         #internal stuff
         self.cr = '\r'
         self.umanager_prompt = '# '
@@ -80,6 +80,9 @@ class Connection(object):
         self.input_src_set = INPUT_SRC_SET
         self.xmodem_crc = 'C'
         self.reprogram_ack = 'programmed'
+        self.update_confirmation = 'umanager firmware update, are you sure ? '
+        self.update_ack = 'y'
+        self.update_reset = 'updated, reset'
 
         def putc_generator(ser):
             def putc(data,timeout=1):
