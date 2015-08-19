@@ -6,9 +6,9 @@ __author__ = "Forta(a)"
 __copyright__ = "Copyright 2015, Forta(a)"
 
 __license__ = "GPL 3.0"
-__version__ = "0.2"
+__version__ = "0.3"
 __maintainer__ = "Forta(a)"
-__status__ = "Alpha"
+__status__ = "Beta"
 
 #you may change these values to meet your requirements
 DEFAULT_SERIAL_DEVICE="/dev/ttyAMA0"
