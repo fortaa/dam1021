@@ -6,7 +6,7 @@ __author__ = "Forta(a)"
 __copyright__ = "Copyright 2015, Forta(a)"
 
 __license__ = "GPL 3.0"
-__version__ = "0.3"
+__version__ = "0.4"
 __maintainer__ = "Forta(a)"
 __status__ = "Beta"
 
