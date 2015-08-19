@@ -6,8 +6,10 @@ Features
 --------
 
 - Load firmware or filter set
+- Filter management
 - Digital volume control (two modes)
 - Input source selection
+- Mode of operation management
 - Command-line utility
 
 Installation
@@ -51,29 +53,45 @@ All API functionality is exposed via a built-in utility. So you don't need to co
 
     $ python dam1021.py -h
     usage: dam1021.py [-h] [-v] [-V] [-s SERIAL] [-t TIMEOUT]
-                      (-d DOWNLOAD | -l VOLUME_LEVEL | -f FLASH_VOLUME_LEVEL | -i INPUT_SOURCE)
-    
-    This script is designed to operate with a dam1021 DAC. Four operations are
-    available. Exclusive access to a serial device is a prerequisite.
-    
+                  (-d DOWNLOAD | -u DOWNLOAD_AND_UPDATE | --mode MODE | -l VOLUME_LEVEL | --flash-volume-level FLASH_VOLUME_LEVEL | -i INPUT_SOURCE | -f FILTER_SET | --default-filter-set DEFAULT_FILTER_SET | -c | -a)
+
+    This script is designed to operate with a dam1021 DAC. Exclusive access to a
+    serial device is a prerequisite.
+
     optional arguments:
       -h, --help            show this help message and exit
       -v, --verbose         increase output verbosity
       -V, --Version         show program's version number and exit
       -s SERIAL, --serial-device SERIAL
-                            serial device to use [default: /dev/ttyUSB0]
+                            serial device to use [default: /dev/ttyAMA0]
       -t TIMEOUT, --timeout TIMEOUT
-                            serial read timeout to use in seconds [default: 1]
+                            serial read timeout to use in seconds [default: 2]
       -d DOWNLOAD, --download DOWNLOAD
                             download a new firmware or filter set
+      -u DOWNLOAD_AND_UPDATE, --download-and-update DOWNLOAD_AND_UPDATE
+                            download a new firmware and update uManager
+      --mode MODE           select mode of operation [normal,invert,bal-left,bal-
+                            right]
       -l VOLUME_LEVEL, --volume-level VOLUME_LEVEL
-                            set a current volume level [-99,15]
-      -f FLASH_VOLUME_LEVEL, --flash-volume-level FLASH_VOLUME_LEVEL
-                            set a volume level on flash [-99,15]
+                            set a current volume level [-80,10] and -99 for
+                            potentiometer control
+      --flash-volume-level FLASH_VOLUME_LEVEL
+                            set a volume level on flash [-80,10] and -99 for
+                            potentiometer control
       -i INPUT_SOURCE, --input-source INPUT_SOURCE
-                            set input source [0,2]
+                            set input source [0,3]
+      -f FILTER_SET, --filter-set FILTER_SET
+                            set a current filter set
+                            [(1|linear)|(2|mixed)|(3|minimum)|(4|soft)]
+      --default-filter-set DEFAULT_FILTER_SET
+                            set a default filter set on flash
+                            [(1|linear)|(2|mixed)|(3|minimum)|(4|soft)]
+      -c, --current-filter-set
+                            show currently selected filter set
+      -a, --all-filters     show all available filters
     
-    Example: python dam1021.py -s /dev/ttyUSB0 -f firmware.skr
+      Example: python dam1021.py -s /dev/ttyUSB0 -d firmware.skr
+
 
 .. _api-label:
   		
